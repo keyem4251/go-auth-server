@@ -1,18 +1,16 @@
 FROM golang:1.23.2-alpine
 
+RUN go install github.com/air-verse/air@latest
+
 # 作業ディレクトリを設定
-WORKDIR /app
+WORKDIR /workspace/auth
 
 # Goモジュールファイルをコピーして依存関係をダウンロード
 COPY go.mod ./
-COPY go.sum ./
 RUN go mod download
 
 # ソースコードをコンテナにコピー
 COPY . .
 
-# アプリケーションをビルド
-RUN go build -o main .
-
 # アプリケーションを実行
-CMD ["/main"]
+CMD ["air"]

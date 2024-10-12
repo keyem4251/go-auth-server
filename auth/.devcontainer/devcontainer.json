@@ -1,8 +1,8 @@
 {
 	"name": "Go Auth Server DevContainer",
 	"dockerComposeFile": ["../../docker-compose.yml"],
-	"service": "app",
-	"workspaceFolder": "/workspace",
+	"service": "auth",
+	"workspaceFolder": "/workspace/auth",
 	"customizations": {
 		"vscode": {
 			"extensions": ["golang.go"]
