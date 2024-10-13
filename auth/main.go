@@ -33,6 +33,18 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	}
 
 	// それぞれの情報を取得
+	cliendId := r.URL.Query().Get("client_id")
+	redirect_uri := r.URL.Query().Get("redirect_uri")
+	state := r.URL.Query().Get("state")
+	code_challenge := r.URL.Query().Get("code_challenge")
+	code_challenge_method := r.URL.Query().Get("code_challenge_method")
+
+	// データベースに情報を保存
+	// TODO
+
+	// リダイレクト
+	redirectURL := os.Getenv("REDIRECT_URI") + "?code=" + code + "&state" + state
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 func (ah *AuthorizeHandler) validateRequest(r *http.Request) bool {
