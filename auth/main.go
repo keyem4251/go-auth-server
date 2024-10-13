@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -33,11 +37,16 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	}
 
 	// それぞれの情報を取得
-	cliendId := r.URL.Query().Get("client_id")
+	clientId := r.URL.Query().Get("client_id")
 	redirect_uri := r.URL.Query().Get("redirect_uri")
 	state := r.URL.Query().Get("state")
 	code_challenge := r.URL.Query().Get("code_challenge")
 	code_challenge_method := r.URL.Query().Get("code_challenge_method")
+
+	// code作成
+	buff := bytes.NewBufferString(clientId)
+	token := uuid.NewMD5(uuid.Must(uuid.NewRandom()), buff.Bytes())
+	code := base64.URLEncoding.EncodeToString([]byte(token.String()))
 
 	// データベースに情報を保存
 	// TODO
