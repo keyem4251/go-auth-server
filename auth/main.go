@@ -44,6 +44,8 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	code_challenge_method := r.URL.Query().Get("code_challenge_method")
 
 	// code作成
+	// クライアントが認可コードをトークンエンドポイントに渡すことでアクセストークンと交換できる
+	// 認可コードはどのユーザーがどのクライアントになんの権限を与えるかを氷顕現する
 	buff := bytes.NewBufferString(clientId)
 	token := uuid.NewMD5(uuid.Must(uuid.NewRandom()), buff.Bytes())
 	code := base64.URLEncoding.EncodeToString([]byte(token.String()))
@@ -65,9 +67,11 @@ func (ah *AuthorizeHandler) validateRequest(r *http.Request) bool {
 		log.Println("response_type must be code")
 		return false
 	case r.URL.Query().Get("client_id") != os.Getenv("CLIENT_ID"):
+		// 本来は登録されたクライアントの情報をDBに保存しておいて、DBの値と一致するか確認する
 		log.Println("client_id is wrong")
 		return false
 	case r.URL.Query().Get("redirect_uri") != os.Getenv("REDIRECT_URI"):
+		// 本来は登録されたクライアントの情報をDBに保存しておいて、DBの値と一致するか確認する
 		log.Println("redirect_uri is wrong")
 		return false
 	case r.URL.Query().Get("state") == "":
