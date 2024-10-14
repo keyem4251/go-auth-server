@@ -22,6 +22,42 @@ func main() {
 	http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), nil)
 }
 
+type AuthorizationCode struct {
+	ClientId                string
+	RedirectUri             string
+	State                   string
+	Code                    string
+	CodeChallenge           string
+	CodeChallengeMethod     string
+	AuthResponseRedirectURL string
+}
+
+func NewAuthorizationCode(
+	clientId string,
+	redirectUri string,
+	state string,
+	codeChallenge string,
+	codeChallengeMethod string,
+) *AuthorizationCode {
+	// code作成
+	// クライアントが認可コードをトークンエンドポイントに渡すことでアクセストークンと交換できる
+	// 認可コードはどのユーザーがどのクライアントになんの権限を与えるかを氷顕現する
+	buff := bytes.NewBufferString(clientId)
+	token := uuid.NewMD5(uuid.Must(uuid.NewRandom()), buff.Bytes())
+	code := base64.URLEncoding.EncodeToString([]byte(token.String()))
+
+	authResponseRedirectURL := redirectUri + "?code=" + code + "&state" + state
+	return &AuthorizationCode{
+		ClientId:                clientId,
+		RedirectUri:             redirectUri,
+		State:                   state,
+		Code:                    code,
+		CodeChallenge:           codeChallenge,
+		CodeChallengeMethod:     codeChallengeMethod,
+		AuthResponseRedirectURL: authResponseRedirectURL,
+	}
+}
+
 type AuthorizeHandler struct{}
 
 func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) {
@@ -37,25 +73,26 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	}
 
 	// それぞれの情報を取得
-	clientId := r.URL.Query().Get("client_id")
-	redirect_uri := r.URL.Query().Get("redirect_uri")
-	state := r.URL.Query().Get("state")
-	code_challenge := r.URL.Query().Get("code_challenge")
-	code_challenge_method := r.URL.Query().Get("code_challenge_method")
+	clientId := r.URL.Query().Get("client_id")       // クライアントのID
+	redirectUri := r.URL.Query().Get("redirect_uri") // 認可レスポンスパラメータを受け取るURL
+	state := r.URL.Query().Get("state")              // CSRF対策のための値
 
-	// code作成
-	// クライアントが認可コードをトークンエンドポイントに渡すことでアクセストークンと交換できる
-	// 認可コードはどのユーザーがどのクライアントになんの権限を与えるかを氷顕現する
-	buff := bytes.NewBufferString(clientId)
-	token := uuid.NewMD5(uuid.Must(uuid.NewRandom()), buff.Bytes())
-	code := base64.URLEncoding.EncodeToString([]byte(token.String()))
+	// PKCEのために必要（データベースに保存）
+	codeChallenge := r.URL.Query().Get("code_challenge")
+	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
 
 	// データベースに情報を保存
-	// TODO
+	authorizationCode := NewAuthorizationCode(
+		clientId,
+		redirectUri,
+		state,
+		codeChallenge,
+		codeChallengeMethod,
+	)
+	fmt.Println(authorizationCode)
 
-	// リダイレクト
-	redirectURL := os.Getenv("REDIRECT_URI") + "?code=" + code + "&state" + state
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// 認可レスポンスパラメータを処理するURLに認可コード、stateを渡す
+	http.Redirect(w, r, authorizationCode.AuthResponseRedirectURL, http.StatusFound)
 }
 
 func (ah *AuthorizeHandler) validateRequest(r *http.Request) bool {
