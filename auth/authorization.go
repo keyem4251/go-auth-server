@@ -16,8 +16,8 @@ type AuthorizationCode struct {
 	RedirectUri             string
 	State                   string
 	Code                    string
-	CodeChallenge           string
-	CodeChallengeMethod     string
+	CodeChallenge           *string
+	CodeChallengeMethod     *string
 	AuthResponseRedirectURL string
 }
 
@@ -41,8 +41,8 @@ func NewAuthorizationCode(
 		RedirectUri:             redirectUri,
 		State:                   state,
 		Code:                    code,
-		CodeChallenge:           codeChallenge,
-		CodeChallengeMethod:     codeChallengeMethod,
+		CodeChallenge:           &codeChallenge,
+		CodeChallengeMethod:     &codeChallengeMethod,
 		AuthResponseRedirectURL: authResponseRedirectURL,
 	}
 }
