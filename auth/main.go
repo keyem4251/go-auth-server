@@ -1,13 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -57,11 +63,24 @@ func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// アクセス、リフレッシュトークンを作成
+	access, refresh, _ := th.createToken(clientId, false)
+	tokenType := "Bearer"
+	expiresIn := 3600
 
 	// トークンを保存
+	fmt.Println(access)
+	fmt.Println(refresh)
+	fmt.Println(tokenType)
+	fmt.Println(expiresIn)
 
 	// レスポンスを作成
-
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"access_token":  access,
+		"token_type":    tokenType,
+		"expires_in":    expiresIn,
+		"refresh_token": refresh,
+	})
 }
 
 func (th *TokenHandler) validateTokenRequest(r *http.Request) bool {
@@ -150,4 +169,19 @@ func getCodeChallenge(codeVerifier string, codeChallengeMethod string) string {
 
 	codeChallenge := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hashed)
 	return codeChallenge
+}
+
+func (th *TokenHandler) createToken(clientId string, isRefresh bool) (string, string, error) {
+	buf := bytes.NewBufferString(clientId)
+	now := time.Now()
+	buf.WriteString(strconv.FormatInt(now.UnixNano(), 10))
+
+	access := base64.URLEncoding.EncodeToString([]byte(uuid.NewMD5(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
+	access = strings.ToUpper(strings.TrimRight(access, "="))
+	refresh := ""
+	if isRefresh {
+		refresh = base64.URLEncoding.EncodeToString([]byte(uuid.NewSHA1(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
+		refresh = strings.ToUpper(strings.TrimRight(refresh, "="))
+	}
+	return access, refresh, nil
 }
