@@ -5,7 +5,17 @@
 	"workspaceFolder": "/workspace/auth",
 	"customizations": {
 		"vscode": {
-			"extensions": ["golang.go"]
+			"extensions": [
+				"golang.go",
+				"ms-azuretools.vscode-docker"
+			]
 		}
-	}
+	},
+	"runArgs": [
+		"--privileged"
+	],
+	"settings": {
+    	"terminal.integrated.shell.linux": "/bin/sh"
+	},
+	"remoteUser": "root"
 }

@@ -1,6 +1,20 @@
 FROM golang:1.23.2-alpine
 
-RUN apk update && apk add docker
+# 必要なパッケージをインストール
+RUN apk add --no-cache \
+    bash \
+    docker \
+    openrc \
+    curl \
+    git
+
+# openrc の設定
+RUN rc-update add docker boot && \
+    rc-status && \
+    touch /run/openrc/softlevel
+
+# Docker デーモンをインストールするためのスクリプトの取得
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
 
 RUN go install github.com/air-verse/air@latest
 
@@ -15,4 +29,4 @@ RUN go mod download
 COPY . .
 
 # アプリケーションを実行
-CMD ["air"]
+CMD ["sh", "-c", "dockerd-entrypoint.sh & air"]
