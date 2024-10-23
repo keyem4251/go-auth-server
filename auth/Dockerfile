@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.23.2
+FROM golang:1.23.2
 
 RUN go install github.com/air-verse/air@latest
 
