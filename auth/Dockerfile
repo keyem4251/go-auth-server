@@ -1,20 +1,4 @@
-FROM golang:1.23.2-alpine
-
-# 必要なパッケージをインストール
-RUN apk add --no-cache \
-    bash \
-    docker \
-    openrc \
-    curl \
-    git
-
-# openrc の設定
-RUN rc-update add docker boot && \
-    rc-status && \
-    touch /run/openrc/softlevel
-
-# Docker デーモンをインストールするためのスクリプトの取得
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
+FROM --platform=linux/amd64 golang:1.23.2
 
 RUN go install github.com/air-verse/air@latest
 

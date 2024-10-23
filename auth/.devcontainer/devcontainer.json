@@ -12,10 +12,10 @@
 		}
 	},
 	"runArgs": [
+		"--init", 
 		"--privileged"
 	],
-	"settings": {
-    	"terminal.integrated.shell.linux": "/bin/sh"
-	},
-	"remoteUser": "root"
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	}
 }
