@@ -13,4 +13,4 @@ RUN go mod download
 COPY . .
 
 # アプリケーションを実行
-CMD ["sh", "-c", "dockerd-entrypoint.sh & air"]
+CMD ["air"]
