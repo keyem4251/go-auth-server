@@ -1,0 +1,19 @@
+# Configuration file for Air
+
+# Working directory
+root = "."
+tmp_dir = "tmp"
+
+# Watch files with .go, .html, and .tmpl extensions
+[build]
+include_ext = ["go", "html", "tmpl"]
+exclude_dir = ["vendor", "tmp"]
+exclude_file = ["_test.go"]
+bin = "tmp/main" # Binary path for the compiled app
+cmd = "go build -o tmp/main" # Build command
+full_bin = "./tmp/main" # Command to execute after build
+log = "air.log"
+delve = false # Delve debugger
+
+# Define where the logs should go (stdout, stderr or a file)
+log_cmd = "tail -f air.log"
