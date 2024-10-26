@@ -11,4 +11,15 @@ services:
       CLIENT_SECRET: ${CLIENT_SECRET}
     volumes:
       - .:/workspace:cached
+    depends_on:
+      - db
     command: air
+  db:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - data:/data/db
+volumes:
+  data:
