@@ -7,14 +7,17 @@ import (
 )
 
 func main() {
+
+	db := NewDB()
+
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 	})
 
-	ah := NewAuthorizeHandler()
+	ah := NewAuthorizeHandler(db)
 	http.HandleFunc("/authorize", ah.HandleAuthorizeRequest)
 
-	th := NewTokenHandler()
+	th := NewTokenHandler(db)
 	http.HandleFunc("/token", th.HandleTokenHandler)
 
 	host := "0.0.0.0"

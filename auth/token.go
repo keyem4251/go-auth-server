@@ -16,10 +16,14 @@ import (
 	"github.com/google/uuid"
 )
 
-type TokenHandler struct{}
+type TokenHandler struct {
+	db *MongoDB
+}
 
-func NewTokenHandler() *TokenHandler {
-	return &TokenHandler{}
+func NewTokenHandler(db *MongoDB) *TokenHandler {
+	return &TokenHandler{
+		db,
+	}
 }
 
 func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Request) {
