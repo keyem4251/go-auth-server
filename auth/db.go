@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,7 +15,7 @@ func NewDB() *MongoDB {
 	if err != nil {
 		log.Fatal("MongoDB接続エラー")
 	}
-	log.Printf("MongoDBに接続: %v\n", client)
+	log.Println("MongoDBに接続")
 	database := client.Database("auth")
 	return &MongoDB{
 		Database: database,
@@ -29,7 +30,9 @@ func connectMongoDB() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	clientOptions := options.Client().ApplyURI("mongodb://mongo:27017")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	clientOptions := options.Client().ApplyURI(dbHost + ":" + dbPort)
 
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {

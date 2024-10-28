@@ -9,6 +9,8 @@ services:
       CLIENT_ID: ${CLIENT_ID}
       REDIRECT_URI: ${REDIRECT_URI}
       CLIENT_SECRET: ${CLIENT_SECRET}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
     volumes:
       - .:/workspace:cached
     depends_on:
