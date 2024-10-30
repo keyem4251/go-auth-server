@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type TokenHandler struct {
@@ -48,11 +50,20 @@ func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	authorizationCode := getAuthorizationCode(clientId)
+	collection := th.db.Database.Collection("authorization")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var authorizationCode AuthorizationCode
+	err = collection.FindOne(ctx, bson.D{{Key: "clientid", Value: clientId}}).Decode(&authorizationCode)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	// PKCEリクエストを検証
 	// client idから取得した値とcode challengeの値を作成して、検証
-	if !th.validatePKCERequest(*authorizationCode, r) {
+	if !th.validatePKCERequest(authorizationCode, r) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -122,18 +133,6 @@ func (th *TokenHandler) validateClientSecret(clientSecret string) bool {
 		return false
 	}
 	return true
-}
-
-func getAuthorizationCode(clientId string) *AuthorizationCode {
-	return &AuthorizationCode{
-		ClientId:                clientId,
-		RedirectUri:             "redirectUri",
-		State:                   "state",
-		Code:                    "code",
-		CodeChallenge:           nil,
-		CodeChallengeMethod:     nil,
-		AuthResponseRedirectURL: "authResponseRedirectURL",
-	}
 }
 
 func (th *TokenHandler) validatePKCERequest(authorizationCode AuthorizationCode, r *http.Request) bool {
