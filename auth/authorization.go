@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -92,13 +91,12 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	collection := ah.db.Database.Collection("authorization")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	result, err := collection.InsertOne(ctx, authorizationCode)
+	_, err := collection.InsertOne(ctx, authorizationCode)
 	if err != nil {
 		log.Println("データベース保存エラー")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("データベースに保存%v\n", result)
 
 	// 認可レスポンスパラメータを処理するURLに認可コード、stateを渡す
 	http.Redirect(w, r, authorizationCode.AuthResponseRedirectURL, http.StatusFound)

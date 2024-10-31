@@ -18,6 +18,30 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+type Token struct {
+	ClientId     string
+	AccessToken  string
+	TokenType    string
+	ExpiresIn    int
+	RefreshToken string
+}
+
+func NewToken(
+	clientId string,
+	accessToken string,
+	tokenType string,
+	expiresIn int,
+	refreshToken string,
+) *Token {
+	return &Token{
+		ClientId:     clientId,
+		AccessToken:  accessToken,
+		TokenType:    tokenType,
+		ExpiresIn:    expiresIn,
+		RefreshToken: refreshToken,
+	}
+}
+
 type TokenHandler struct {
 	db *MongoDB
 }
@@ -77,10 +101,13 @@ func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Reques
 	expiresIn := 3600
 
 	// トークンを保存
-	fmt.Println(access)
-	fmt.Println(refresh)
-	fmt.Println(tokenType)
-	fmt.Println(expiresIn)
+	token := NewToken(clientId, access, tokenType, expiresIn, refresh)
+	_, insertErr := collection.InsertOne(ctx, token)
+	if insertErr != nil {
+		log.Println("データベース保存エラー")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	// レスポンスを作成
 	w.Header().Set("Content-Type", "application/json")
