@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -209,4 +210,43 @@ func (th *TokenHandler) createToken(clientId string, isRefresh bool) (string, st
 		refresh = strings.ToUpper(strings.TrimRight(refresh, "="))
 	}
 	return access, refresh, nil
+}
+
+func (th *Token) createJwtToken(clientId string, isRefresh bool) (string, string, error, error) {
+	accessClaims := jwt.RegisteredClaims{
+		Issuer:    "issuer",                                             // トークン発行者の識別子: URI形式（"https://example.us.auth0.com"）
+		Subject:   clientId,                                             // 認証の対象となるユーザのID（クライアントIDではなくユーザー: "auth0|...." auth0でのユーザーIDとか）
+		Audience:  []string{clientId},                                   // トークンを利用する対象（APIなど: "http://localhost:8080"とか）
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 + time.Minute)), // トークンの有効期限
+		NotBefore: jwt.NewNumericDate(time.Now()),                       // トークンが有効となる日時
+		IssuedAt:  jwt.NewNumericDate(time.Now()),                       // トークンの発行日時
+		ID:        "id",                                                 // JWT の一意の ID
+	}
+	access := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
+	accessTokenString, accessTokenErr := access.SignedString(os.Getenv("SECRET_KEY"))
+	if accessTokenErr != nil {
+		log.Println("access token create error")
+		return "", "", accessTokenErr, nil
+	}
+
+	refreshTokenString := ""
+	var refreshTokenErr error
+	if isRefresh {
+		RefreshTokenClaims := jwt.RegisteredClaims{
+			Issuer:    "issuer",
+			Subject:   "subject",
+			Audience:  []string{"audienct"},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ID:        "id",
+		}
+		refresh := jwt.NewWithClaims(jwt.SigningMethodES256, RefreshTokenClaims)
+		refreshTokenString, refreshTokenErr = refresh.SignedString(os.Getenv("SECRET_KEY"))
+		if refreshTokenErr != nil {
+			log.Println("refresh token create error")
+			return "", "", nil, refreshTokenErr
+		}
+	}
+	return accessTokenString, refreshTokenString, nil, nil
 }
