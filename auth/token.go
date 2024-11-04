@@ -1,8 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -10,12 +12,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -31,14 +31,12 @@ func NewToken(
 	clientId string,
 	accessToken string,
 	tokenType string,
-	expiresIn int,
 	refreshToken string,
 ) *Token {
 	return &Token{
 		ClientId:     clientId,
 		AccessToken:  accessToken,
 		TokenType:    tokenType,
-		ExpiresIn:    expiresIn,
 		RefreshToken: refreshToken,
 	}
 }
@@ -97,12 +95,22 @@ func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Reques
 	// リフレッシュトークンはアクセストークンを発行するために必要
 	// 期限はアクセストークンが短い、リフレッシュトークンが長い
 	// アクセストークンの発行にはリフレッシュトークンと合わせてClientId,ClientSecretも必要
-	access, refresh, _ := th.createToken(clientId, false)
+	access, refresh, accessErr, refreshErr := th.createJwtToken(clientId, false)
+	if accessErr != nil {
+		log.Println(accessErr)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if refreshErr != nil {
+		log.Println(refreshErr)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	tokenType := "Bearer"
-	expiresIn := 3600
 
 	// トークンを保存
-	token := NewToken(clientId, access, tokenType, expiresIn, refresh)
+	token := NewToken(clientId, access, tokenType, refresh)
 	_, insertErr := collection.InsertOne(ctx, token)
 	if insertErr != nil {
 		log.Println("データベース保存エラー")
@@ -115,7 +123,6 @@ func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(map[string]any{
 		"access_token":  access,
 		"token_type":    tokenType,
-		"expires_in":    expiresIn,
 		"refresh_token": refresh,
 	})
 }
@@ -196,23 +203,23 @@ func getCodeChallenge(codeVerifier string, codeChallengeMethod string) string {
 	return codeChallenge
 }
 
-func (th *TokenHandler) createToken(clientId string, isRefresh bool) (string, string, error) {
-	buf := bytes.NewBufferString(clientId)
-	now := time.Now()
-	buf.WriteString(strconv.FormatInt(now.UnixNano(), 10))
+// func (th *TokenHandler) createToken(clientId string, isRefresh bool) (string, string, error) {
+// 	buf := bytes.NewBufferString(clientId)
+// 	now := time.Now()
+// 	buf.WriteString(strconv.FormatInt(now.UnixNano(), 10))
 
-	// jwtではなくmd5
-	access := base64.URLEncoding.EncodeToString([]byte(uuid.NewMD5(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
-	access = strings.ToUpper(strings.TrimRight(access, "="))
-	refresh := ""
-	if isRefresh {
-		refresh = base64.URLEncoding.EncodeToString([]byte(uuid.NewSHA1(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
-		refresh = strings.ToUpper(strings.TrimRight(refresh, "="))
-	}
-	return access, refresh, nil
-}
+// 	// jwtではなくmd5
+// 	access := base64.URLEncoding.EncodeToString([]byte(uuid.NewMD5(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
+// 	access = strings.ToUpper(strings.TrimRight(access, "="))
+// 	refresh := ""
+// 	if isRefresh {
+// 		refresh = base64.URLEncoding.EncodeToString([]byte(uuid.NewSHA1(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
+// 		refresh = strings.ToUpper(strings.TrimRight(refresh, "="))
+// 	}
+// 	return access, refresh, nil
+// }
 
-func (th *Token) createJwtToken(clientId string, isRefresh bool) (string, string, error, error) {
+func (th *TokenHandler) createJwtToken(clientId string, isRefresh bool) (string, string, error, error) {
 	accessClaims := jwt.RegisteredClaims{
 		Issuer:    "issuer",                                             // トークン発行者の識別子: URI形式（"https://example.us.auth0.com"）
 		Subject:   clientId,                                             // 認証の対象となるユーザのID（クライアントIDではなくユーザー: "auth0|...." auth0でのユーザーIDとか）
@@ -223,7 +230,8 @@ func (th *Token) createJwtToken(clientId string, isRefresh bool) (string, string
 		ID:        "id",                                                 // JWT の一意の ID
 	}
 	access := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
-	accessTokenString, accessTokenErr := access.SignedString(os.Getenv("SECRET_KEY"))
+	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	accessTokenString, accessTokenErr := access.SignedString(priv)
 	if accessTokenErr != nil {
 		log.Println("access token create error")
 		return "", "", accessTokenErr, nil
@@ -242,7 +250,7 @@ func (th *Token) createJwtToken(clientId string, isRefresh bool) (string, string
 			ID:        "id",
 		}
 		refresh := jwt.NewWithClaims(jwt.SigningMethodES256, RefreshTokenClaims)
-		refreshTokenString, refreshTokenErr = refresh.SignedString(os.Getenv("SECRET_KEY"))
+		refreshTokenString, refreshTokenErr = refresh.SignedString(priv)
 		if refreshTokenErr != nil {
 			log.Println("refresh token create error")
 			return "", "", nil, refreshTokenErr
