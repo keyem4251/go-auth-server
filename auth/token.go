@@ -51,7 +51,7 @@ func NewTokenHandler(db *MongoDB) *TokenHandler {
 	}
 }
 
-func (th *TokenHandler) HandleTokenHandler(w http.ResponseWriter, r *http.Request) {
+func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Request) {
 	// トークンリクエストを検証
 	if !th.validateTokenRequest(r) {
 		w.WriteHeader(http.StatusBadRequest)

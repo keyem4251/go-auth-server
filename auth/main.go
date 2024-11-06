@@ -18,7 +18,7 @@ func main() {
 	http.HandleFunc("/authorize", ah.HandleAuthorizeRequest)
 
 	th := NewTokenHandler(db)
-	http.HandleFunc("/token", th.HandleTokenHandler)
+	http.HandleFunc("/token", th.HandleTokenRequest)
 
 	host := "0.0.0.0"
 	port := "8080"
