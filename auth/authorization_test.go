@@ -8,8 +8,9 @@ import (
 )
 
 func TestHandleAuthorizeRequest(t *testing.T) {
-	db := NewDB()
-	ah := NewAuthorizeHandler(db)
+	db := NewAuthDB()
+	authRepo := NewAuthorizationRepository(db)
+	ah := NewAuthorizeHandler(authRepo)
 
 	endpoint := "/authorize"
 	responseType := "response_type=code"

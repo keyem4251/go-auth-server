@@ -8,16 +8,18 @@ import (
 
 func main() {
 
-	db := NewDB()
+	db := NewAuthDB()
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 	})
 
-	ah := NewAuthorizeHandler(db)
+	authRepo := NewAuthorizationRepository(db)
+	ah := NewAuthorizeHandler(authRepo)
 	http.HandleFunc("/authorize", ah.HandleAuthorizeRequest)
 
-	th := NewTokenHandler(db)
+	tokenRepo := NewTokenRepository(db)
+	th := NewTokenHandler(authRepo, tokenRepo)
 	http.HandleFunc("/token", th.HandleTokenRequest)
 
 	host := "0.0.0.0"

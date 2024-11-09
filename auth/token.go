@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Token struct {
@@ -42,12 +40,17 @@ func NewToken(
 }
 
 type TokenHandler struct {
-	db *MongoDB
+	AuthRepo  *AuthorizationRepository
+	TokenRepo *TokenRepository
 }
 
-func NewTokenHandler(db *MongoDB) *TokenHandler {
+func NewTokenHandler(
+	authRepo *AuthorizationRepository,
+	tokenRepo *TokenRepository,
+) *TokenHandler {
 	return &TokenHandler{
-		db,
+		AuthRepo:  authRepo,
+		TokenRepo: tokenRepo,
 	}
 }
 
@@ -73,12 +76,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	collection := th.db.Database.Collection("authorization")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var authorizationCode AuthorizationCode
-	err = collection.FindOne(ctx, bson.D{{Key: "clientid", Value: clientId}}).Decode(&authorizationCode)
+	authorizationCode, err := th.AuthRepo.FindOne(clientId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -111,9 +109,9 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 
 	// トークンを保存
 	token := NewToken(clientId, access, tokenType, refresh)
-	_, insertErr := collection.InsertOne(ctx, token)
-	if insertErr != nil {
-		log.Println("データベース保存エラー")
+	saveErr := th.TokenRepo.Save(token)
+	if saveErr != nil {
+		log.Println("保存エラー")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -170,7 +168,7 @@ func (th *TokenHandler) validateClientSecret(clientSecret string) bool {
 	return true
 }
 
-func (th *TokenHandler) validatePKCERequest(authorizationCode AuthorizationCode, r *http.Request) bool {
+func (th *TokenHandler) validatePKCERequest(authorizationCode *AuthorizationCode, r *http.Request) bool {
 	if authorizationCode.CodeChallenge == nil && authorizationCode.CodeChallengeMethod == nil {
 		return true
 	}

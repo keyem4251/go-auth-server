@@ -2,12 +2,10 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -22,78 +20,77 @@ type AuthorizationCode struct {
 	AuthResponseRedirectURL string
 }
 
-func NewAuthorizationCode(
-	clientId string,
-	redirectUri string,
-	state string,
-	codeChallenge string,
-	codeChallengeMethod string,
-) *AuthorizationCode {
+func NewAuthorizationCode(ar *AuthorizationRequest) *AuthorizationCode {
 	// code作成
 	// クライアントが認可コードをトークンエンドポイントに渡すことでアクセストークンと交換できる
 	// 認可コードはどのユーザーがどのクライアントになんの権限を与えるかを氷顕現する
-	buff := bytes.NewBufferString(clientId)
+	buff := bytes.NewBufferString(ar.ClientId)
 	token := uuid.NewMD5(uuid.Must(uuid.NewRandom()), buff.Bytes())
 	code := base64.URLEncoding.EncodeToString([]byte(token.String()))
 
-	authResponseRedirectURL := redirectUri + "?code=" + code + "&state" + state
+	authResponseRedirectURL := ar.RedirectUri + "?code=" + code + "&state" + ar.State
 	return &AuthorizationCode{
-		ClientId:                clientId,
-		RedirectUri:             redirectUri,
-		State:                   state,
+		ClientId:                ar.ClientId,
+		RedirectUri:             ar.RedirectUri,
+		State:                   ar.State,
 		Code:                    code,
-		CodeChallenge:           &codeChallenge,
-		CodeChallengeMethod:     &codeChallengeMethod,
+		CodeChallenge:           &ar.CodeChallenge,
+		CodeChallengeMethod:     &ar.CodeChallengeMethod,
 		AuthResponseRedirectURL: authResponseRedirectURL,
 	}
 }
 
-func NewAuthorizeHandler(db *MongoDB) *AuthorizeHandler {
+type AuthorizationRequest struct {
+	Method              string
+	ResponstType        string
+	ClientId            string // クライアントのID
+	RedirectUri         string // 認可レスポンスパラメータを受け取るURL
+	State               string // CSRF対策のための値
+	CodeChallenge       string // PKCEのために必要（データベースに保存）
+	CodeChallengeMethod string // PKCEのために必要（データベースに保存）
+}
+
+func NewAuthorizationRequest(r *http.Request) *AuthorizationRequest {
+	return &AuthorizationRequest{
+		Method:              r.Method,
+		ResponstType:        r.URL.Query().Get("response_type"),
+		ClientId:            r.URL.Query().Get("client_id"),
+		RedirectUri:         r.URL.Query().Get("redirect_uri"),
+		State:               r.URL.Query().Get("state"),
+		CodeChallenge:       r.URL.Query().Get("code_challenge"),
+		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
+	}
+}
+
+func NewAuthorizeHandler(authRepo *AuthorizationRepository) *AuthorizeHandler {
 	return &AuthorizeHandler{
-		db,
+		AuthRepo: authRepo,
 	}
 }
 
 type AuthorizeHandler struct {
-	db *MongoDB
+	AuthRepo *AuthorizationRepository
 }
 
 func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) {
+	ar := NewAuthorizationRequest(r)
+
 	// リクエストの検証
-	if !ah.validateRequest(r) {
+	if !ar.ValidateRequest(r) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// PKCEの検証
-	if !ah.validatePKCERequest(r) {
+	if !ar.ValidatePKCERequest(r) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// それぞれの情報を取得
-	clientId := r.URL.Query().Get("client_id")       // クライアントのID
-	redirectUri := r.URL.Query().Get("redirect_uri") // 認可レスポンスパラメータを受け取るURL
-	state := r.URL.Query().Get("state")              // CSRF対策のための値
-
-	// PKCEのために必要（データベースに保存）
-	codeChallenge := r.URL.Query().Get("code_challenge")
-	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
-
 	// データベースに情報を保存
-	authorizationCode := NewAuthorizationCode(
-		clientId,
-		redirectUri,
-		state,
-		codeChallenge,
-		codeChallengeMethod,
-	)
-	collection := ah.db.Database.Collection("authorization")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err := collection.InsertOne(ctx, authorizationCode)
+	authorizationCode := NewAuthorizationCode(ar)
+	err := ah.AuthRepo.Save(authorizationCode)
 	if err != nil {
-		log.Println("データベース保存エラー")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -102,23 +99,23 @@ func (ah *AuthorizeHandler) HandleAuthorizeRequest(w http.ResponseWriter, r *htt
 	http.Redirect(w, r, authorizationCode.AuthResponseRedirectURL, http.StatusFound)
 }
 
-func (ah *AuthorizeHandler) validateRequest(r *http.Request) bool {
+func (ar *AuthorizationRequest) ValidateRequest(r *http.Request) bool {
 	switch {
-	case r.Method != "GET":
+	case ar.Method != "GET":
 		log.Println("request method must be GET")
 		return false
-	case r.URL.Query().Get("response_type") != "code":
+	case ar.ResponstType != "code":
 		log.Println("response_type must be code")
 		return false
-	case r.URL.Query().Get("client_id") != os.Getenv("CLIENT_ID"):
+	case ar.ClientId != os.Getenv("CLIENT_ID"):
 		// 本来は登録されたクライアントの情報をDBに保存しておいて、DBの値と一致するか確認する
 		log.Println("client_id is wrong")
 		return false
-	case r.URL.Query().Get("redirect_uri") != os.Getenv("REDIRECT_URI"):
+	case ar.RedirectUri != os.Getenv("REDIRECT_URI"):
 		// 本来は登録されたクライアントの情報をDBに保存しておいて、DBの値と一致するか確認する
 		log.Println("redirect_uri is wrong")
 		return false
-	case r.URL.Query().Get("state") == "":
+	case ar.State == "":
 		log.Println("state is empty")
 		return false
 	default:
@@ -126,21 +123,19 @@ func (ah *AuthorizeHandler) validateRequest(r *http.Request) bool {
 	}
 }
 
-func (ah *AuthorizeHandler) validatePKCERequest(r *http.Request) bool {
-	codeChallenge := r.URL.Query().Get("code_challenge")
-	if codeChallenge == "" {
+func (ar *AuthorizationRequest) ValidatePKCERequest(r *http.Request) bool {
+	if ar.CodeChallenge == "" {
 		log.Println("code_challenge is empty")
 		return false
-	} else if len(codeChallenge) < 43 || len(codeChallenge) > 128 {
+	} else if len(ar.CodeChallenge) < 43 || len(ar.CodeChallenge) > 128 {
 		log.Println("code_challenge is wrong")
 		return false
 	}
 
-	codeChallengeMethod := r.URL.Query().Get("code_challenge_method")
-	if codeChallengeMethod == "" {
+	if ar.CodeChallengeMethod == "" {
 		log.Println("code_challenge_method is empty")
 		return false
-	} else if codeChallengeMethod != "plain" && codeChallengeMethod != "S256" {
+	} else if ar.CodeChallengeMethod != "plain" && ar.CodeChallengeMethod != "S256" {
 		log.Println("code_challenge_method is wrong")
 		return false
 	}
