@@ -49,7 +49,7 @@ func (th *TokenHandler) HandleTokenRequest(w http.ResponseWriter, r *http.Reques
 
 	// PKCEリクエストを検証
 	// client idから取得した値とcode challengeの値を作成して、検証
-	if !tr.validatePKCERequest(authorizationCode, r) {
+	if !tr.validatePKCERequest(authorizationCode) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}

@@ -130,7 +130,7 @@ func (tr *TokenRequest) parseAuthorizationHeader() (string, error) {
 	return clientId, nil
 }
 
-func (tr *TokenRequest) validatePKCERequest(authorizationCode *authorization.AuthorizationCode, r *http.Request) bool {
+func (tr *TokenRequest) validatePKCERequest(authorizationCode *authorization.AuthorizationCode) bool {
 	if authorizationCode.CodeChallenge == nil && authorizationCode.CodeChallengeMethod == nil {
 		return true
 	}
