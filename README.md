@@ -6,17 +6,17 @@ This project is an OAuth2 Authorization Server built in Go that supports PKCE (P
 
 Features
 
-	•	OAuth2 Authorization Code Flow with PKCE: Enhanced security for authorization code flow.
-	•	JWT Support: Issues signed JWTs as access tokens for secure access control.
-	•	MongoDB Integration: Stores users and authorization data.
-	•	Hot-Reloading with Air: Reflects code changes immediately during development.
-	•	Devcontainer Support: Simplifies setup in a containerized development environment.
+* OAuth2 Authorization Code Flow with PKCE: Enhanced security for authorization code flow.
+* JWT Support: Issues signed JWTs as access tokens for secure access control.
+* MongoDB Integration: Stores users and authorization data.
+* Hot-Reloading with Air: Reflects code changes immediately during development.
+* Devcontainer Support: Simplifies setup in a containerized development environment.
 
 Requirements
 
-	•	Docker and Docker Compose
-	•	VS Code with Devcontainer extension
-	•	MongoDB (default mongodb://mongo:27017)
+* Docker and Docker Compose
+* VS Code with Devcontainer extension
+* MongoDB (default mongodb://mongo:27017)
 
 Set Environment Variables: Create a .env file in the root with the following values:
 ```
@@ -29,11 +29,11 @@ DB_PORT=27017
 ```
 
 Usage
-•	Authorization Reques
+* Authorization Reques
 ```
 GET /authorize?client_id=your_client_id&response_type=code&redirect_uri=https://yourapp.com/callback&code_challenge=your_code_challenge&code_challenge_method=S256
 ```
-•	Token Exchange:
+* Token Exchange:
 ```
 POST /token
 Content-Type: application/x-www-form-urlencoded
