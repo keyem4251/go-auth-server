@@ -9,13 +9,17 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"auth/authorization"
+	"auth/db"
+	"auth/token"
 )
 
 func TestHandlTokenRequest(t *testing.T) {
-	db := NewAuthDB()
-	authRepo := NewAuthorizationRepository(db)
-	tokenRepo := NewTokenRepository(db)
-	th := NewTokenHandler(authRepo, tokenRepo)
+	db := db.NewAuthDB()
+	authRepo := authorization.NewAuthorizationRepository(db)
+	tokenRepo := token.NewTokenRepository(db)
+	th := token.NewTokenHandler(authRepo, tokenRepo)
 
 	endpoint := "/token"
 	var body bytes.Buffer

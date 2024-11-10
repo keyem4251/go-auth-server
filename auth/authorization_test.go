@@ -5,12 +5,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"auth/authorization"
+	"auth/db"
 )
 
 func TestHandleAuthorizeRequest(t *testing.T) {
-	db := NewAuthDB()
-	authRepo := NewAuthorizationRepository(db)
-	ah := NewAuthorizeHandler(authRepo)
+	db := db.NewAuthDB()
+	authRepo := authorization.NewAuthorizationRepository(db)
+	ah := authorization.NewAuthorizeHandler(authRepo)
 
 	endpoint := "/authorize"
 	responseType := "response_type=code"

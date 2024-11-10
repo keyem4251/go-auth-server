@@ -4,22 +4,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"auth/authorization"
+	"auth/db"
+	"auth/token"
 )
 
 func main() {
 
-	db := NewAuthDB()
+	db := db.NewAuthDB()
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 	})
 
-	authRepo := NewAuthorizationRepository(db)
-	ah := NewAuthorizeHandler(authRepo)
+	authRepo := authorization.NewAuthorizationRepository(db)
+	ah := authorization.NewAuthorizeHandler(authRepo)
 	http.HandleFunc("/authorize", ah.HandleAuthorizeRequest)
 
-	tokenRepo := NewTokenRepository(db)
-	th := NewTokenHandler(authRepo, tokenRepo)
+	tokenRepo := token.NewTokenRepository(db)
+	th := token.NewTokenHandler(authRepo, tokenRepo)
 	http.HandleFunc("/token", th.HandleTokenRequest)
 
 	host := "0.0.0.0"

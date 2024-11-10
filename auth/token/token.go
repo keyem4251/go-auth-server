@@ -1,4 +1,4 @@
-package main
+package token
 
 import (
 	"crypto/ecdsa"
@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"auth/authorization"
 )
 
 type Token struct {
@@ -40,12 +42,12 @@ func NewToken(
 }
 
 type TokenHandler struct {
-	AuthRepo  *AuthorizationRepository
+	AuthRepo  *authorization.AuthorizationRepository
 	TokenRepo *TokenRepository
 }
 
 func NewTokenHandler(
-	authRepo *AuthorizationRepository,
+	authRepo *authorization.AuthorizationRepository,
 	tokenRepo *TokenRepository,
 ) *TokenHandler {
 	return &TokenHandler{
@@ -168,7 +170,7 @@ func (th *TokenHandler) validateClientSecret(clientSecret string) bool {
 	return true
 }
 
-func (th *TokenHandler) validatePKCERequest(authorizationCode *AuthorizationCode, r *http.Request) bool {
+func (th *TokenHandler) validatePKCERequest(authorizationCode *authorization.AuthorizationCode, r *http.Request) bool {
 	if authorizationCode.CodeChallenge == nil && authorizationCode.CodeChallengeMethod == nil {
 		return true
 	}
